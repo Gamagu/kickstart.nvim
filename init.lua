@@ -605,7 +605,20 @@ require('lazy').setup({
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
-        clangd = {},
+        clangd = {
+          cmd = {
+            'clangd',
+            '--background-index',
+            '--clang-tidy',
+            '--completion-style=detailed',
+            '--function-arg-placeholders',
+          },
+          settings = {
+            init_options = {
+              fallbackFlags = { '--fallback-style={ BasedOnStyle: LLVM, IndentWidth: 4, TabWidth: 4, UseTab: Never }' },
+            },
+          },
+        },
         -- gopls = {},
         -- pyright = {},
         -- rust_analyzer = {},
