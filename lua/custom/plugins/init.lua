@@ -22,4 +22,7 @@ return {
     ft = 'typst',
     lazy = false,
   },
+  {
+    "sindrets/diffview.nvim"
+  }
 }

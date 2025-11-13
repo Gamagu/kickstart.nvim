@@ -467,8 +467,25 @@ require('lazy').setup({
 
       -- Useful status updates for LSP.
       -- NOTE: `opts = {}` is the same as calling `require('fidget').setup({})`
-      { 'j-hui/fidget.nvim', opts = {} },
-
+      {
+        'j-hui/fidget.nvim',
+        opts = {
+          notification = {
+            window = {
+              winblend = 0, -- fully opaque
+              border = 'double', -- more visible border
+              align = 'top', -- position at top
+            },
+            override_vim_notify = false, -- use Fidget for :lua vim.notify
+          },
+          progress = {
+            display = {
+              done_icon = '✔️', -- clear done icon
+              progress_icon = { '⏳', '⌛' }, -- animated progress
+            },
+          },
+        },
+      },
       -- Allows extra capabilities provided by nvim-cmp
       'hrsh7th/cmp-nvim-lsp',
     },
@@ -558,7 +575,7 @@ require('lazy').setup({
           --
           -- When you move your cursor, the highlights will be cleared (the second autocommand).
           local client = vim.lsp.get_client_by_id(event.data.client_id)
-          if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight) then
+          if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf) then
             local highlight_augroup = vim.api.nvim_create_augroup('kickstart-lsp-highlight', { clear = false })
             vim.api.nvim_create_autocmd({ 'CursorHold', 'CursorHoldI' }, {
               buffer = event.buf,
@@ -585,7 +602,7 @@ require('lazy').setup({
           -- code, if the language server you are using supports them
           --
           -- This may be unwanted, since they displace some of your code
-          if client and client.supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint) then
+          if client and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, event.buf) then
             map('<leader>th', function()
               vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled { bufnr = event.buf })
             end, '[T]oggle Inlay [H]ints')
@@ -599,16 +616,15 @@ require('lazy').setup({
       --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
       local capabilities = vim.lsp.protocol.make_client_capabilities()
       capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+      capabilities.window = capabilities.window or {}
+      capabilities.window.workDoneProgress = true
 
-      local lsp_status = require 'lsp-status'
       -- completion_customize_lsp_label as used in completion-nvim
       -- Optional: customize the kind labels used in identifying the current function.
       -- g:completion_customize_lsp_label is a dict mapping from LSP symbol kind
       -- to the string you want to display as a label
-      lsp_status.config { kind_labels = vim.g.completion_customize_lsp_label }
 
       -- Register the progress handler
-      lsp_status.register_progress()
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -624,30 +640,25 @@ require('lazy').setup({
           cmd = {
             'clangd',
             '-j',
-            '10',
+            '90',
             '--background-index',
             '--clang-tidy',
             '--completion-style=detailed',
             '--function-arg-placeholders',
             '--log=info',
             '--enable-config',
-            '--enable-progress',
           },
-          settings = {
-
-            init_options = {
-              fallbackFlags = {
-                '--fallback-style={ BasedOnStyle: LLVM, IndentWidth: 4, TabWidth: 4, UseTab: Never }',
-              },
-              clangdFileStatus = true,
-              enableHover = true,
-              inactiveRegions = { useBackgroundHighlight = true },
+          root_markers = { 'compile_commands.json' },
+          filetypes = { 'c', 'cpp' },
+          init_options = {
+            fallbackFlags = {
+              '--fallback-style={ BasedOnStyle: LLVM, IndentWidth: 4, TabWidth: 4, UseTab: Never }',
             },
+            clangdFileStatus = true,
+            enableHover = true,
+            inactiveRegions = { useBackgroundHighlight = true },
           },
-
           capabilities = capabilities,
-          on_attach = lsp_status.on_attach,
-          handlers = lsp_status.extensions.clangd.setup(),
         },
         -- gopls = {},
         -- pyright = {},
@@ -693,18 +704,10 @@ require('lazy').setup({
       })
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
-      require('mason-lspconfig').setup {
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            -- This handles overriding only values explicitly passed
-            -- by the server configuration above. Useful when disabling
-            -- certain features of an LSP (for example, turning off formatting for ts_ls)
-            server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
-          end,
-        },
-      }
+      for server_name, config in pairs(servers) do
+        vim.lsp.config(server_name, config)
+        vim.lsp.enable { server_name }
+      end
     end,
   },
 
@@ -728,18 +731,10 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        if vim.g.autoformat then
-          local disable_filetypes = {}
-          local lsp_format_opt
-          if disable_filetypes[vim.bo[bufnr].filetype] or true then
-            lsp_format_opt = 'never'
-          else
-            lsp_format_opt = 'fallback'
-          end
-          return {
-            timeout_ms = 500,
-            lsp_format = lsp_format_opt,
-          }
+        local enabled_filetypes = { 'lua' }
+        local lsp_format_opt
+        if enabled_filetypes[vim.bo[bufnr].filetype] then
+          lsp_format_opt = 'never'
         else
           return
         end
@@ -916,24 +911,49 @@ require('lazy').setup({
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
 
-      -- Simple and easy statusline.
-      --  You could remove this setup call if you don't like it,
-      --  and try some other statusline plugin
-      local statusline = require 'mini.statusline'
-      -- set use_icons to true if you have a Nerd Font
-      statusline.setup { use_icons = vim.g.have_nerd_font }
-
-      -- You can configure sections in the statusline by overriding their
-      -- default behavior. For example, here we set the section for
-      -- cursor location to LINE:COLUMN
-      ---@diagnostic disable-next-line: duplicate-set-field
-      statusline.section_location = function()
-        return '%2l:%-2v'
-      end
+      -- -- Simple and easy statusline.
+      -- --  You could remove this setup call if you don't like it,
+      -- --  and try some other statusline plugin
+      -- local statusline = require 'mini.statusline'
+      -- -- set use_icons to true if you have a Nerd Font
+      -- statusline.setup { use_icons = vim.g.have_nerd_font }
+      --
+      -- -- You can configure sections in the statusline by overriding their
+      -- -- default behavior. For example, here we set the section for
+      -- -- cursor location to LINE:COLUMN
+      -- ---@diagnostic disable-next-line: duplicate-set-field
+      -- statusline.section_location = function()
+      --   return '%2l:%-2v'
+      -- end
 
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
     end,
+  },
+  {
+    'nvim-lualine/lualine.nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    config = function()
+    require('nvim-web-devicons').setup()
+
+    require('lualine').setup {
+      options = {
+        theme = 'auto',
+        icons_enabled = vim.g.have_nerd_font,
+      },
+      sections = {
+        lualine_a = { 'mode' },
+        lualine_b = { 'branch', 'diff', 'diagnostics' },
+        lualine_c = { 'filename' },
+        lualine_x = { 'encoding', 'fileformat', 'filetype', 'lsp_progress' },
+        lualine_y = { 'progress' },
+        lualine_z = { 'location' },
+      },
+    }
+    end,
+  },
+  {
+    'arkav/lualine-lsp-progress'
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
