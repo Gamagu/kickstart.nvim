@@ -229,7 +229,7 @@ vim.opt.rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- NOTE: Plugins can be added with a link (or for a github repo: 'owner/repo' link).
-  'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
+  -- 'tpope/vim-sleuth', -- Detect tabstop and shiftwidth automatically
 
   -- NOTE: Plugins can also be added by using a table,
   -- with the first argument being the link and the following
@@ -648,10 +648,11 @@ require('lazy').setup({
             '--log=info',
             '--enable-config',
           },
-          root_markers = { 'compile_commands.json' },
+          root_markers = { 'compile_commands.json', '.clangd' },
           filetypes = { 'c', 'cpp' },
           init_options = {
             fallbackFlags = {
+              '--std=c++23',
               '--fallback-style={ BasedOnStyle: LLVM, IndentWidth: 4, TabWidth: 4, UseTab: Never }',
             },
             clangdFileStatus = true,
@@ -1042,6 +1043,7 @@ require('lazy').setup({
 -- vim: ts=2 sts=2 sw=2 et
 vim.opt['tabstop'] = 4
 vim.opt['shiftwidth'] = 4
+vim.opt.expandtab = true;
 
 -- lazsgit settings
 vim.g.lazygit_floating_window_winblend = 0 -- transparency of floating window
