@@ -27,14 +27,34 @@ return {
           desc = 'Open Copilot Chat',
         },
         {
+          '<leader>am',
+          '<cmd>CopilotChatModels<cr>',
+          desc = 'Copilot Chat [M]odels',
+        },
+        {
           '<leader>ap',
           '<cmd>CopilotChatPrompts<cr>',
           mode = { 'n', 'v' },
           desc = 'Copilot Chat [P]rompts',
         },
+        {
+          '<leader>at',
+          function()
+            local chat = require('CopilotChat')
+            local tokens = chat.response()
+            if tokens then
+              vim.notify('Last response token usage:\n' .. vim.inspect(tokens), vim.log.levels.INFO)
+            end
+          end,
+          desc = 'Copilot Chat [T]oken usage',
+        },
       },
       build = 'make tiktoken', -- Only on MacOS or Linux
-      opts = {},
+      opts = {
+          show_help = true,
+          highlight_headers = true,
+          show_folds = true
+      },
       -- See Commands section for default commands if you want to lazy load on them
     },
   },

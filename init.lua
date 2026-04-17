@@ -164,6 +164,9 @@ vim.opt.scrolloff = 10
 --  See `:help hlsearch`
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
+-- Machine vars:
+local machine_vars = require 'machine_vars'
+
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
@@ -338,18 +341,9 @@ require('lazy').setup({
     branch = '0.1.9',
     dependencies = {
       'nvim-lua/plenary.nvim',
-      { -- If encountering errors, see telescope-fzf-native README for installation instructions
+      {
         'nvim-telescope/telescope-fzf-native.nvim',
-
-        -- `build` is used to run some command when the plugin is installed/updated.
-        -- This is only run then, not every time Neovim starts up.
-        build = 'make',
-
-        -- `cond` is a condition used to determine whether this plugin should be
-        -- installed and loaded.
-        cond = function()
-          return vim.fn.executable 'make' == 1
-        end,
+        build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release --target install',
       },
       { 'nvim-telescope/telescope-ui-select.nvim' },
 
@@ -396,6 +390,13 @@ require('lazy').setup({
         extensions = {
           ['ui-select'] = {
             require('telescope.themes').get_dropdown(),
+          },
+          fzf = {
+            fuzzy = true, -- false will only do exact matching
+            override_generic_sorter = true, -- override the generic sorter
+            override_file_sorter = true, -- override the file sorter
+            case_mode = 'smart_case', -- or "ignore_case" or "respect_case"
+            -- the default case_mode is "smart_case"
           },
         },
       }
@@ -637,17 +638,7 @@ require('lazy').setup({
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
       local servers = {
         clangd = {
-          cmd = {
-            'clangd',
-            '-j',
-            '90',
-            '--background-index',
-            '--clang-tidy',
-            '--completion-style=detailed',
-            '--function-arg-placeholders',
-            '--log=info',
-            '--enable-config',
-          },
+          cmd = machine_vars.clangd_cmd,
           root_markers = { 'compile_commands.json', '.clangd' },
           filetypes = { 'c', 'cpp' },
           init_options = {
@@ -659,9 +650,11 @@ require('lazy').setup({
             enableHover = true,
             inactiveRegions = { useBackgroundHighlight = true },
           },
+
           capabilities = capabilities,
-        },
-        -- gopls = {},
+          -- on_attach = lsp_status.on_attach,
+          -- handlers = lsp_status.extensions.clangd.setup(),
+        }, -- gopls = {},
         -- pyright = {},
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
@@ -685,6 +678,19 @@ require('lazy').setup({
               -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
               -- diagnostics = { disable = { 'missing-fields' } },
             },
+          },
+        },
+        basedpyright = {
+          analysis = {
+            -- your desired analysis settings
+            typeCheckingMode = 'basic',
+            autoSearchPaths = true,
+            useLibraryCodeForTypes = true,
+            diagnosticMode = 'workspace',
+            inlayHints = {
+              callArgumentNames = true,
+            },
+            -- etc.
           },
         },
       }
@@ -727,27 +733,44 @@ require('lazy').setup({
       },
     },
     opts = {
-      notify_on_error = false,
-      format_on_save = function(bufnr)
-        -- Disable "format_on_save lsp_fallback" for languages that don't
-        -- have a well standardized coding style. You can add additional
-        -- languages here or re-enable it for the disabled ones.
-        local enabled_filetypes = { 'lua' }
-        local lsp_format_opt
-        if enabled_filetypes[vim.bo[bufnr].filetype] then
-          lsp_format_opt = 'never'
-        else
-          return
-        end
-      end,
+      notify_on_error = true,
+      format_on_save = false, -- function(bufnr)
+      --   -- Disable "format_on_save lsp_fallback" for languages that don't
+      --   -- have a well standardized coding style. You can add additional
+      --   -- languages here or re-enable it for the disabled ones.
+      --   local disable_filetypes = { 'lua'}
+      --   local lsp_format_opt
+      --   if disable_filetypes[vim.bo[bufnr].filetype] then
+      --     lsp_format_opt = 'never'
+      --   else
+      --     lsp_format_opt = 'fallback'
+      --   end
+      --   lsp_format_opt = false
+      --   return {
+      --     timeout_ms = 500,
+      --     lsp_format = lsp_format_opt,
+      --   }
+      -- end,
+      notify_no_formatter = true,
       formatters_by_ft = {
         lua = { 'stylua' },
-        cpp = { 'clang' },
-        -- Conform can also run multiple formatters sequentially
+        cpp = {
+          'my_clang',
+        }, -- Conform can also run multiple formatters sequentially
         -- python = { "isort", "black" },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
+      },
+      formatters = {
+        my_clang = {
+          command = machine_vars.clang_format_conform.command,
+          args = machine_vars.clang_format_conform.args,
+          stdin = machine_vars.clang_format_conform.stdin or true,
+        },
+        stylua = {
+          command = machine_vars.stylua_path,
+        },
       },
     },
   },
@@ -912,20 +935,20 @@ require('lazy').setup({
       -- - sr)'  - [S]urround [R]eplace [)] [']
       require('mini.surround').setup()
 
-      -- -- Simple and easy statusline.
-      -- --  You could remove this setup call if you don't like it,
-      -- --  and try some other statusline plugin
-      -- local statusline = require 'mini.statusline'
-      -- -- set use_icons to true if you have a Nerd Font
-      -- statusline.setup { use_icons = vim.g.have_nerd_font }
-      --
-      -- -- You can configure sections in the statusline by overriding their
-      -- -- default behavior. For example, here we set the section for
-      -- -- cursor location to LINE:COLUMN
-      -- ---@diagnostic disable-next-line: duplicate-set-field
-      -- statusline.section_location = function()
-      --   return '%2l:%-2v'
-      -- end
+      -- Simple and easy statusline.
+      --  You could remove this setup call if you don't like it,
+      --  and try some other statusline plugin
+      local statusline = require 'mini.statusline'
+      -- set use_icons to true if you have a Nerd Font
+      statusline.setup { use_icons = vim.g.have_nerd_font }
+
+      -- You can configure sections in the statusline by overriding their
+      -- default behavior. For example, here we set the section for
+      -- cursor location to LINE:COLUMN
+      ---@diagnostic disable-next-line: duplicate-set-field
+      statusline.section_location = function()
+        return '%2l:%-2v'
+      end
 
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
@@ -935,26 +958,40 @@ require('lazy').setup({
     'nvim-lualine/lualine.nvim',
     dependencies = { 'nvim-tree/nvim-web-devicons' },
     config = function()
-    require('nvim-web-devicons').setup()
+      require('nvim-web-devicons').setup()
 
-    require('lualine').setup {
-      options = {
-        theme = 'auto',
-        icons_enabled = vim.g.have_nerd_font,
-      },
-      sections = {
-        lualine_a = { 'mode' },
-        lualine_b = { 'branch', 'diff', 'diagnostics' },
-        lualine_c = { 'filename' },
-        lualine_x = { 'encoding', 'fileformat', 'filetype', 'lsp_progress' },
-        lualine_y = { 'progress' },
-        lualine_z = { 'location' },
-      },
-    }
+      require('lualine').setup {
+        options = {
+          theme = 'auto',
+          icons_enabled = vim.g.have_nerd_font,
+        },
+        sections = {
+          lualine_a = { 'mode' },
+          lualine_b = { 'branch', 'diff', 'diagnostics' },
+          lualine_c = { 'filename' },
+          lualine_x = {
+            {
+              function()
+                local chat = require 'CopilotChat'
+                return '' .. (chat.config.model or 'default')
+              end,
+              cond = function()
+                return package.loaded['CopilotChat'] ~= nil
+              end,
+            },
+            'encoding',
+            'fileformat',
+            'filetype',
+            'lsp_progress',
+          },
+          lualine_y = { 'progress' },
+          lualine_z = { 'location' },
+        },
+      }
     end,
   },
   {
-    'arkav/lualine-lsp-progress'
+    'arkav/lualine-lsp-progress',
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
@@ -1043,7 +1080,7 @@ require('lazy').setup({
 -- vim: ts=2 sts=2 sw=2 et
 vim.opt['tabstop'] = 4
 vim.opt['shiftwidth'] = 4
-vim.opt.expandtab = true;
+vim.opt.expandtab = true
 
 -- lazsgit settings
 vim.g.lazygit_floating_window_winblend = 0 -- transparency of floating window
