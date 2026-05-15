@@ -680,6 +680,77 @@ require('lazy').setup({
             },
           },
         },
+
+        -- Angular Language Service
+        angularls = {
+          root_markers = { 'angular.json', 'project.json' },
+          filetypes = { 'typescript', 'html', 'typescriptreact', 'typescript.tsx' },
+        },
+
+        -- TypeScript Language Server
+        ts_ls = {
+          root_markers = { 'tsconfig.json', 'package.json', 'jsconfig.json' },
+          filetypes = { 'typescript', 'javascript', 'typescriptreact', 'javascriptreact' },
+          settings = {
+            typescript = {
+              inlayHints = {
+                includeInlayParameterNameHints = 'all',
+                includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+                includeInlayFunctionParameterTypeHints = true,
+                includeInlayVariableTypeHints = true,
+                includeInlayPropertyDeclarationTypeHints = true,
+                includeInlayFunctionLikeReturnTypeHints = true,
+                includeInlayEnumMemberValueHints = true,
+              },
+            },
+            javascript = {
+              inlayHints = {
+                includeInlayParameterNameHints = 'all',
+                includeInlayParameterNameHintsWhenArgumentMatchesName = false,
+                includeInlayFunctionParameterTypeHints = true,
+                includeInlayVariableTypeHints = true,
+                includeInlayPropertyDeclarationTypeHints = true,
+                includeInlayFunctionLikeReturnTypeHints = true,
+                includeInlayEnumMemberValueHints = true,
+              },
+            },
+          },
+        },
+
+        -- HTML Language Server
+        html = {
+          filetypes = { 'html' },
+          settings = {
+            html = {
+              format = {
+                enable = true,
+              },
+              hover = {
+                documentation = true,
+                references = true,
+              },
+            },
+          },
+        },
+
+        -- CSS Language Server
+        cssls = {
+          filetypes = { 'css', 'scss', 'less' },
+          settings = {
+            css = { validate = true },
+            scss = { validate = true },
+            less = { validate = true },
+          },
+        },
+
+        -- ESLint
+        eslint = {
+          root_markers = { '.eslintrc', '.eslintrc.js', '.eslintrc.json', '.eslintrc.yml', 'eslint.config.js', 'eslint.config.mjs' },
+          filetypes = { 'javascript', 'javascriptreact', 'typescript', 'typescriptreact', 'html' },
+          settings = {
+            workingDirectories = { mode = 'auto' },
+          },
+        },
       }
 
       -- Ensure the servers and tools above are installed
@@ -935,7 +1006,7 @@ require('lazy').setup({
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter-intro`
     config = function()
       -- Ensure these parsers are installed
-      local parsers = { 'bash', 'c', 'cpp', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
+      local parsers = { 'bash', 'c', 'cpp', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'css', 'javascript', 'typescript', 'tsx', 'json' }
       require('nvim-treesitter').install(parsers)
 
       ---@param buf integer
