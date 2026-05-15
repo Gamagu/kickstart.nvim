@@ -37,17 +37,6 @@ return {
           mode = { 'n', 'v' },
           desc = 'Copilot Chat [P]rompts',
         },
-        {
-          '<leader>at',
-          function()
-            local chat = require('CopilotChat')
-            local tokens = chat.response()
-            if tokens then
-              vim.notify('Last response token usage:\n' .. vim.inspect(tokens), vim.log.levels.INFO)
-            end
-          end,
-          desc = 'Copilot Chat [T]oken usage',
-        },
       },
       build = 'make tiktoken', -- Only on MacOS or Linux
       opts = {
