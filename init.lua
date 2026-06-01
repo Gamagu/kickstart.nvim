@@ -851,6 +851,7 @@ require('lazy').setup({
 
       -- You can configure highlights by doing something like:
       vim.cmd.hi 'Comment gui=none'
+      vim.cmd.hi 'Comment guifg=#f0e800 gui=none'
     end,
   },
 
@@ -859,7 +860,15 @@ require('lazy').setup({
     'folke/todo-comments.nvim',
     event = 'VimEnter',
     dependencies = { 'nvim-lua/plenary.nvim' },
-    opts = { signs = false },
+    opts = {
+      signs = false,
+      highlight = {
+        pattern = [[.*<(KEYWORDS)\s*%(\([^\)]*\))?\s*:]],
+      },
+      search = {
+        pattern = [[\b(KEYWORDS)(\([^\)]*\))?:]],
+      },
+    },
   },
 
   { -- Collection of various small independent plugins/modules
