@@ -641,7 +641,7 @@ require('lazy').setup({
           -- handlers = lsp_status.extensions.clangd.setup(),
         }, -- gopls = {},
         -- pyright = {},
-        -- rust_analyzer = {},
+        rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
         -- Some languages (like typescript) have entire language plugins that can be useful:
@@ -814,7 +814,7 @@ require('lazy').setup({
         cpp = {
           'my_clang',
         }, -- Conform can also run multiple formatters sequentially
-        -- python = { "isort", "black" },
+        python = { 'ruff_format', 'ruff_fix' },
         --
         -- You can use 'stop_after_first' to run the first available formatter from the list
         -- javascript = { "prettierd", "prettier", stop_after_first = true },
